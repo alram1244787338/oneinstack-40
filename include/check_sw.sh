@@ -126,18 +126,40 @@ installDepsUbuntu() {
   apt-get -y autoremove
   apt-get -yf install
   export DEBIAN_FRONTEND=noninteractive
-  [[ "${Ubuntu_ver}" =~ ^22$ ]] && apt-get -y --allow-downgrades install libicu70=70.1-2 libglib2.0-0=2.72.1-1 libxml2-dev
+  # Best-effort alignment of historically conflicting libs on Ubuntu 22+.
+  # NOTE: do NOT hard-pin exact versions here (e.g. libicu70=70.1-2). Pinned GA
+  # versions stop being installable after point-release/security updates, which
+  # used to fail this single command and leave apt half-broken for the rest of
+  # the run. Install the -dev metapackages and let apt resolve the runtime libs.
+  if [ ${Ubuntu_ver} -ge 22 >/dev/null 2>&1 ]; then
+    apt-get -y --allow-downgrades install libicu-dev libglib2.0-dev libxml2-dev || \
+      echo "${CWARNING}Optional lib alignment skipped on Ubuntu ${Ubuntu_ver}, continuing...${CEND}"
+  fi
 
   # critical security updates
   grep security /etc/apt/sources.list > /tmp/security.sources.list
   apt-get -y upgrade -o Dir::Etc::SourceList=/tmp/security.sources.list
 
-  # Install needed packages
-  pkgList="libperl-dev pkg-config libsodium-dev libbz2-dev libxslt-dev libjpeg-dev libxml2-dev libxpm-dev libfreetype-dev debian-keyring debian-archive-keyring build-essential gcc g++ make cmake autoconf libjpeg8 libjpeg8-dev libpng-dev libpng12-0 libpng12-dev libpng3 libxml2 libxml2-dev zlib1g zlib1g-dev libc6 libc6-dev libc-client2007e-dev libglib2.0-0 libglib2.0-dev bzip2 libzip-dev libbz2-1.0 libncurses5 libncurses5-dev libaio1 libaio-dev numactl libreadline-dev curl libcurl3-gnutls libcurl4-gnutls-dev libcurl4-openssl-dev e2fsprogs libkrb5-3 libkrb5-dev libltdl-dev libidn11 libidn11-dev openssl net-tools libssl-dev libtool libevent-dev re2c libsasl2-dev libxslt1-dev libicu-dev libsqlite3-dev libcloog-ppl1 bison patch vim zip unzip tmux htop bc dc expect libexpat1-dev rsyslog libonig-dev libtirpc-dev libnss3 rsync git lsof lrzsz chrony psmisc wget sysv-rc apt-transport-https ca-certificates software-properties-common gnupg ufw libiconv-dev libfreetype6-dev libexif-dev gettext-dev libgmp-dev"
+  # Install needed packages (package set differs by Ubuntu release)
   export DEBIAN_FRONTEND=noninteractive
+  if [ ${Ubuntu_ver} -ge 22 >/dev/null 2>&1 ]; then
+    # Ubuntu 22.04+ / 24.04+: drop removed/renamed packages and use current names.
+    # Removed vs. legacy: libjpeg8/libjpeg8-dev, libpng12-0/libpng12-dev/libpng3,
+    # libc-client2007e-dev, libcloog-ppl1, sysv-rc, libxslt-dev, libidn11/libidn11-dev,
+    # libiconv-dev, libfreetype6-dev, gettext-dev, debian-keyring/debian-archive-keyring.
+    # Added/renamed: gettext, libidn-dev, libncurses-dev.
+    pkgList="libperl-dev pkg-config libsodium-dev libbz2-dev libjpeg-dev libxml2-dev libxpm-dev libfreetype-dev build-essential gcc g++ make cmake autoconf libpng-dev libxml2 zlib1g zlib1g-dev libc6 libc6-dev libglib2.0-0 libglib2.0-dev bzip2 libzip-dev libbz2-1.0 libncurses5 libncurses5-dev libncurses-dev libaio1 libaio-dev numactl libreadline-dev curl libcurl3-gnutls libcurl4-gnutls-dev libcurl4-openssl-dev e2fsprogs libkrb5-3 libkrb5-dev libltdl-dev libidn-dev openssl net-tools libssl-dev libtool libevent-dev re2c libsasl2-dev libxslt1-dev libicu-dev libsqlite3-dev bison patch vim zip unzip tmux htop bc dc expect libexpat1-dev rsyslog libonig-dev libtirpc-dev libnss3 rsync git lsof lrzsz chrony psmisc wget apt-transport-https ca-certificates software-properties-common gnupg ufw libexif-dev gettext libgmp-dev"
+  else
+    # Ubuntu 16/18/20: keep the legacy package set unchanged.
+    pkgList="libperl-dev pkg-config libsodium-dev libbz2-dev libxslt-dev libjpeg-dev libxml2-dev libxpm-dev libfreetype-dev debian-keyring debian-archive-keyring build-essential gcc g++ make cmake autoconf libjpeg8 libjpeg8-dev libpng-dev libpng12-0 libpng12-dev libpng3 libxml2 libxml2-dev zlib1g zlib1g-dev libc6 libc6-dev libc-client2007e-dev libglib2.0-0 libglib2.0-dev bzip2 libzip-dev libbz2-1.0 libncurses5 libncurses5-dev libaio1 libaio-dev numactl libreadline-dev curl libcurl3-gnutls libcurl4-gnutls-dev libcurl4-openssl-dev e2fsprogs libkrb5-3 libkrb5-dev libltdl-dev libidn11 libidn11-dev openssl net-tools libssl-dev libtool libevent-dev re2c libsasl2-dev libxslt1-dev libicu-dev libsqlite3-dev libcloog-ppl1 bison patch vim zip unzip tmux htop bc dc expect libexpat1-dev rsyslog libonig-dev libtirpc-dev libnss3 rsync git lsof lrzsz chrony psmisc wget sysv-rc apt-transport-https ca-certificates software-properties-common gnupg ufw libiconv-dev libfreetype6-dev libexif-dev gettext-dev libgmp-dev"
+  fi
+  failedPkg=""
   for Package in ${pkgList}; do
-    apt-get --no-install-recommends -y install ${Package}
+    apt-get --no-install-recommends -y install ${Package} || failedPkg="${failedPkg} ${Package}"
   done
+  if [ -n "${failedPkg}" ]; then
+    echo "${CWARNING}The following optional packages could not be installed on Ubuntu ${Ubuntu_ver} and were skipped:${failedPkg}${CEND}"
+  fi
 }
 
 installDepsBySrc() {
@@ -151,10 +173,19 @@ installDepsBySrc() {
     rm -rf icu
   fi
 
-  if command -v lsof >/dev/null 2>&1; then
+  # Finalize: only write the ~/.oneinstack init marker once the critical build
+  # toolchain is actually present. Writing it earlier (or on a weak single-command
+  # check) makes a half-failed dependency install look "already initialized" and
+  # silently skips the deps step on the next run.
+  missingDeps=""
+  for cmd in gcc g++ make cmake; do
+    command -v ${cmd} >/dev/null 2>&1 || missingDeps="${missingDeps} ${cmd}"
+  done
+  if [ -z "${missingDeps}" ]; then
     echo 'already initialize' > ~/.oneinstack
   else
-    echo "${CFAILURE}${PM} config error parsing file failed${CEND}"
+    echo "${CFAILURE}Dependency initialization failed: missing required command(s):${missingDeps}${CEND}"
+    echo "${CFAILURE}The dependency packages were not fully installed. Review ${oneinstack_dir}/install.log, install the missing package(s), then re-run.${CEND}"
     kill -9 $$; exit 1;
   fi
 
