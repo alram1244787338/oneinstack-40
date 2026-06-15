@@ -72,10 +72,15 @@ Install_MPHP() {
           . include/php-8.4.sh
           Install_PHP84 2>&1 | tee -a ${oneinstack_dir}/install.log
           ;;
+        85)
+          . include/php-8.5.sh
+          Install_PHP85 2>&1 | tee -a ${oneinstack_dir}/install.log
+          ;;
       esac
       if [ -e "${php_install_dir}/sbin/php-fpm" ]; then
         systemctl stop php-fpm
         sed -i "s@/dev/shm/php-cgi.sock@/dev/shm/php${mphp_ver}-cgi.sock@" ${php_install_dir}/etc/php-fpm.conf
+        [ -e "${php_install_dir}/etc/php-fpm.d/www.conf" ] && sed -i "s@/dev/shm/php-cgi.sock@/dev/shm/php${mphp_ver}-cgi.sock@" ${php_install_dir}/etc/php-fpm.d/www.conf
         [ -e "/lib/systemd/system/php-fpm.service" ] && /bin/mv /lib/systemd/system/php-fpm.service /lib/systemd/system/php${mphp_ver}-fpm.service
         [ -e "/lib/systemd/system/php-fpm.service_bk" ] && /bin/mv /lib/systemd/system/php-fpm.service{_bk,}
         systemctl enable php${mphp_ver}-fpm

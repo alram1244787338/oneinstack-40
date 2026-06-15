@@ -138,7 +138,7 @@ while :; do
   --php_option)
     php_option=$2
     shift 2
-    [[ ! ${php_option} =~ ^[1-9]$|^1[0-4]$ ]] && {
+    [[ ! ${php_option} =~ ^[1-9]$|^1[0-5]$ ]] && {
       echo "${CWARNING}php_option input error! Please only input number 1~15${CEND}"
       exit 1
     }
@@ -654,10 +654,11 @@ if [ ${ARG_NUM} == 0 ]; then
           echo -e "\t${CMSG}12${CEND}. Install php-8.2"
           echo -e "\t${CMSG}13${CEND}. Install php-8.3"
           echo -e "\t${CMSG}14${CEND}. Install php-8.4"
+          echo -e "\t${CMSG}15${CEND}. Install php-8.5"
           read -e -p "Please input a number:(Default 14 press Enter) " php_option
           php_option=${php_option:-14}
-          if [[ ! ${php_option} =~ ^[1-9]$|^1[0-4]$ ]]; then
-            echo "${CWARNING}input error! Please only input number 1~14${CEND}"
+          if [[ ! ${php_option} =~ ^[1-9]$|^1[0-5]$ ]]; then
+            echo "${CWARNING}input error! Please only input number 1~15${CEND}"
           else
             break
           fi
@@ -1096,6 +1097,10 @@ case "${php_option}" in
   14)
     . include/php-8.4.sh
     Install_PHP84 2>&1 | tee -a ${oneinstack_dir}/install.log
+    ;;
+  15)
+    . include/php-8.5.sh
+    Install_PHP85 2>&1 | tee -a ${oneinstack_dir}/install.log
     ;;
 esac
 

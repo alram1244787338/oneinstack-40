@@ -603,6 +603,8 @@ checkDownload() {
     src_url=${mirror_link}/oneinstack/src/argon2-${argon2_ver}.tar.gz && Download_src
     src_url=${mirror_link}/oneinstack/src/libsodium-${libsodium_up_ver}.tar.gz && Download_src
     src_url=${mirror_link}/oneinstack/src/libzip-${libzip_ver}.tar.gz && Download_src
+  elif [ "${php_option}" == '15' ] || [ "${mphp_ver}" == '85' ]; then
+    src_url=https://www.php.net/distributions/php-${php85_ver}.tar.gz && Download_src
   fi
 
   # PHP OPCache
